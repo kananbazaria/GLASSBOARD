@@ -1,6 +1,6 @@
 # Firebase Setup Plan
 
-This matches the current GlassBoard mobile scaffold in `/Users/kananbazaria/Desktop/GLASS BOARD/glassboard-app`.
+This matches the current GlassBoard mobile scaffold in `./glassboard-app`.
 
 ## 1. Create Firebase Project
 

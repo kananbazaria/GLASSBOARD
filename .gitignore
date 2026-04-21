@@ -1,0 +1,26 @@
+# Root repo hygiene
+.DS_Store
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# App local state and generated output
+glassboard-app/node_modules/
+glassboard-app/.expo/
+glassboard-app/dist/
+glassboard-app/web-build/
+glassboard-app/expo-env.d.ts
+glassboard-app/.env
+glassboard-app/.env.*
+glassboard-app/*.tsbuildinfo
+glassboard-app/ios/
+glassboard-app/android/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

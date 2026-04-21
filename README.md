@@ -4,7 +4,7 @@ Initial mobile scaffold for the GlassBoard cross-department dependency tracker.
 
 ## App Location
 
-The runnable Expo React Native app lives in `/Users/kananbazaria/Desktop/GLASS BOARD/glassboard-app`.
+The runnable Expo React Native app lives in `./glassboard-app` inside this repository.
 
 ## Current Scope
 
@@ -17,7 +17,8 @@ The runnable Expo React Native app lives in `/Users/kananbazaria/Desktop/GLASS B
 ## Run It
 
 ```bash
-cd "/Users/kananbazaria/Desktop/GLASS BOARD/glassboard-app"
+cd glassboard-app
+npm install
 npm start
 ```
 
@@ -35,6 +36,8 @@ EXPO_PUBLIC_FIREBASE_APP_ID=
 ```
 
 With those values present, the `Use Firebase Sign-In` action can call the real Firebase auth client. Without them, the app still works in demo mode so UI and flows can keep moving.
+
+The repository ignores `glassboard-app/.env`, `node_modules`, and other generated Expo files so local setup stays out of git.
 
 ## Firestore Collections
 
