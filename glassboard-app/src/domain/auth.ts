@@ -11,4 +11,5 @@ export type AppUser = {
 export type SignInPayload = {
   email: string;
   password: string;
+  preferredRole?: UserRole;
 };

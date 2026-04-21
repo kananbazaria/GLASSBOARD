@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppUser } from '../../domain/auth';
-import { fetchAuditEvents, fetchHandoffs, fetchModules, fetchTasks } from '../../data/firebase/firestoreService';
+import { fetchDashboardSnapshot } from '../../data/firebase/firestoreService';
+import { hasFirebaseConfig } from '../../data/firebase/config';
 import { dashboardSnapshot } from '../../data/mock/dashboard';
 import { createDashboardSummary } from '../../domain/analytics';
 import { AuditEvent, ChecklistItem, DashboardSnapshot, Handoff, TeamModule } from '../../domain/models';
@@ -81,47 +82,45 @@ const buildSnapshotForUser = (baseSnapshot: DashboardSnapshot, currentUser: AppU
 
 export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>(() => buildSnapshotForUser(dashboardSnapshot, currentUser));
-  const [dataSource, setDataSource] = useState<'mock' | 'mixed-live'>('mock');
+  const [dataSource, setDataSource] = useState<'mock' | 'live'>('mock');
   const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
 
   useEffect(() => {
     let active = true;
 
     const loadDashboard = async () => {
+      if (!hasFirebaseConfig()) {
+        setSnapshot(buildSnapshotForUser(dashboardSnapshot, currentUser));
+        setDataSource('mock');
+        setStatus('idle');
+        return;
+      }
+
       try {
         setStatus('loading');
-
-        const [modules, tasks, handoffs, auditEvents] = await Promise.all([
-          fetchModules(),
-          fetchTasks(),
-          fetchHandoffs(),
-          fetchAuditEvents(),
-        ]);
+        const liveSnapshot = await fetchDashboardSnapshot();
 
         if (!active) {
           return;
         }
 
-        const nextSnapshot: DashboardSnapshot = buildSnapshotForUser(
-          {
-            modules: modules.length > 0 ? modules : dashboardSnapshot.modules,
-            checklist: tasks.length > 0 ? tasks : dashboardSnapshot.checklist,
-            handoffs: handoffs.length > 0 ? handoffs : dashboardSnapshot.handoffs,
-            auditTrail: auditEvents.length > 0 ? (auditEvents as AuditEvent[]) : dashboardSnapshot.auditTrail,
-          },
-          currentUser,
-        );
+        const nextSnapshot: DashboardSnapshot = buildSnapshotForUser(liveSnapshot, currentUser);
 
         setSnapshot(nextSnapshot);
-        setDataSource(modules.length > 0 || tasks.length > 0 ? 'mixed-live' : 'mock');
+        setDataSource('live');
         setStatus('idle');
       } catch {
         if (!active) {
           return;
         }
 
-        setSnapshot(buildSnapshotForUser(dashboardSnapshot, currentUser));
-        setDataSource('mock');
+        setSnapshot({
+          modules: [],
+          checklist: [],
+          handoffs: [],
+          auditTrail: [],
+        });
+        setDataSource('live');
         setStatus('error');
       }
     };
@@ -134,6 +133,12 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
   }, [currentUser]);
 
   const summary = createDashboardSummary(snapshot);
+  const isUsingMockData = dataSource === 'mock';
+  const hasLiveData =
+    snapshot.modules.length > 0 ||
+    snapshot.checklist.length > 0 ||
+    snapshot.handoffs.length > 0 ||
+    snapshot.auditTrail.length > 0;
 
   return (
     <View style={styles.screen}>
@@ -155,13 +160,17 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
           </Text>
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>
-              {dataSource === 'mixed-live'
-                ? 'Live Firestore data connected for modules and tasks'
-                : 'Mobile command view for module health, handoffs, and audit history'}
+              {isUsingMockData
+                ? 'Demo mode with local sample data for module health, handoffs, and audit history'
+                : hasLiveData
+                  ? 'Live Firestore data connected for dashboard activity'
+                  : 'Live Firestore connected. Add records to see the dashboard populate.'}
             </Text>
           </View>
-          {status === 'loading' ? <Text style={styles.statusText}>Syncing dashboard from Firestore...</Text> : null}
-          {status === 'error' ? <Text style={styles.statusError}>Firestore sync failed, showing local mock data.</Text> : null}
+          {!isUsingMockData && status === 'loading' ? <Text style={styles.statusText}>Syncing dashboard from Firestore...</Text> : null}
+          {!isUsingMockData && status === 'error' ? (
+            <Text style={styles.statusError}>Firestore sync failed. Check your Firebase config, auth, or collection rules.</Text>
+          ) : null}
         </View>
 
         <View style={styles.metricGrid}>
@@ -175,6 +184,11 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
           title="Module Progress"
           subtitle="Each module owns its checklist, updates progress, and exposes only the context needed for the next handoff."
         >
+          {snapshot.modules.length === 0 ? (
+            <Text style={styles.metadataText}>
+              {isUsingMockData ? 'Demo modules will appear here.' : 'No modules found in Firestore yet.'}
+            </Text>
+          ) : null}
           {snapshot.modules.map((module) => (
             <View key={module.id} style={styles.rowCard}>
               <View style={styles.rowHeader}>
@@ -204,6 +218,11 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
           title="Digital Handshakes"
           subtitle="Every transition is explicit: sender, receiver, proof of delivery, deadline, and response state."
         >
+          {snapshot.handoffs.length === 0 ? (
+            <Text style={styles.metadataText}>
+              {isUsingMockData ? 'Demo handoffs will appear here.' : 'No handoff records found in Firestore yet.'}
+            </Text>
+          ) : null}
           {snapshot.handoffs.map((handoff) => (
             <View key={handoff.id} style={styles.rowCard}>
               <View style={styles.rowHeader}>
@@ -226,6 +245,11 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
           title="Checklist Focus"
           subtitle="A lightweight checklist system keeps each team honest before they can initiate the next module handoff."
         >
+          {snapshot.checklist.length === 0 ? (
+            <Text style={styles.metadataText}>
+              {isUsingMockData ? 'Demo checklist items will appear here.' : 'No task records found in Firestore yet.'}
+            </Text>
+          ) : null}
           {snapshot.checklist.map((item) => (
             <View key={item.id} style={styles.checklistRow}>
               <View style={[styles.checkIcon, item.complete ? styles.checkIconDone : styles.checkIconPending]}>
@@ -246,7 +270,11 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
           subtitle="Organization heads get the full trail without exposing unrelated sensitive detail across teams."
         >
           {snapshot.auditTrail.length === 0 ? (
-            <Text style={styles.metadataText}>Audit events will appear here for organization heads once the collection is added.</Text>
+            <Text style={styles.metadataText}>
+              {isUsingMockData
+                ? 'Demo audit events will appear here for organization heads.'
+                : 'Audit events will appear here for organization heads once the Firestore collection is populated.'}
+            </Text>
           ) : null}
           {snapshot.auditTrail.map((event) => (
             <View key={event.id} style={styles.auditRow}>

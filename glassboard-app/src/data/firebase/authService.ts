@@ -1,6 +1,8 @@
-import { User, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithEmailAndPassword, signOut as firebaseSignOut } from 'firebase/auth';
 
 import { AppUser, SignInPayload, UserRole } from '../../domain/auth';
+import { getDefaultModuleIdsForRole } from '../mock/session';
+import { fetchUserProfile } from './firestoreService';
 import { getFirebaseAuth, hasFirebaseConfig } from './config';
 
 const inferRoleFromEmail = (email: string): UserRole => {
@@ -23,13 +25,26 @@ const mapFirebaseUser = (user: User): AppUser => ({
   moduleIds: [],
 });
 
-export const signInWithFirebase = async ({ email, password }: SignInPayload): Promise<AppUser> => {
+const hydrateAppUser = async (user: User, preferredRole?: UserRole): Promise<AppUser> => {
+  const baseUser = mapFirebaseUser(user);
+  const savedProfile = await fetchUserProfile(user.uid);
+  const resolvedRole = savedProfile?.role ?? preferredRole ?? baseUser.role;
+
+  return {
+    ...baseUser,
+    name: savedProfile?.name ?? baseUser.name,
+    role: resolvedRole,
+    moduleIds: savedProfile?.moduleIds?.length ? savedProfile.moduleIds : getDefaultModuleIdsForRole(resolvedRole),
+  };
+};
+
+export const signInWithFirebase = async ({ email, password, preferredRole }: SignInPayload): Promise<AppUser> => {
   if (!hasFirebaseConfig()) {
     throw new Error('Firebase environment variables are missing.');
   }
 
   const credential = await signInWithEmailAndPassword(getFirebaseAuth(), email, password);
-  return mapFirebaseUser(credential.user);
+  return hydrateAppUser(credential.user, preferredRole);
 };
 
 export const signOutFromFirebase = async () => {
@@ -38,4 +53,24 @@ export const signOutFromFirebase = async () => {
   }
 
   await firebaseSignOut(getFirebaseAuth());
+};
+
+export const subscribeToAuthenticatedUser = (onChange: (user: AppUser | null) => void) => {
+  if (!hasFirebaseConfig()) {
+    onChange(null);
+    return () => undefined;
+  }
+
+  return onAuthStateChanged(getFirebaseAuth(), async (user) => {
+    if (!user) {
+      onChange(null);
+      return;
+    }
+
+    try {
+      onChange(await hydrateAppUser(user));
+    } catch {
+      onChange(mapFirebaseUser(user));
+    }
+  });
 };

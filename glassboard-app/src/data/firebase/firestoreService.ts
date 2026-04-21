@@ -1,6 +1,7 @@
 import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { AppUser } from '../../domain/auth';
+import { DashboardSnapshot } from '../../domain/models';
 import {
   AuditEventDocument,
   HandoffDocument,
@@ -71,4 +72,29 @@ export const fetchUserProfile = async (userId: string): Promise<UserDocument | n
 
   const snapshot = await getDoc(doc(getFirebaseDb(), collections.users, userId));
   return snapshot.exists() ? (snapshot.data() as UserDocument) : null;
+};
+
+export const fetchDashboardSnapshot = async (): Promise<DashboardSnapshot> => {
+  if (!hasFirebaseConfig()) {
+    return {
+      modules: [],
+      handoffs: [],
+      checklist: [],
+      auditTrail: [],
+    };
+  }
+
+  const [modules, tasks, handoffs, auditEvents] = await Promise.all([
+    fetchModules(),
+    fetchTasks(),
+    fetchHandoffs(),
+    fetchAuditEvents(),
+  ]);
+
+  return {
+    modules,
+    checklist: tasks,
+    handoffs,
+    auditTrail: auditEvents,
+  };
 };

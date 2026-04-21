@@ -33,7 +33,7 @@ export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProp
     try {
       setStatus('submitting');
       setError(null);
-      const user = await signInWithFirebase({ email, password });
+      const user = await signInWithFirebase({ email, password, preferredRole: role });
       await saveUserProfile(user);
       onAuthenticated(user);
     } catch (signInError) {
@@ -112,7 +112,9 @@ export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProp
             onPress={handleFirebaseSignIn}
             style={[styles.button, styles.primaryButton, status === 'submitting' ? styles.buttonDisabled : undefined]}
           >
-            <Text style={styles.primaryButtonText}>{status === 'submitting' ? 'Signing in...' : 'Use Firebase Sign-In'}</Text>
+            <Text style={styles.primaryButtonText}>
+              {status === 'submitting' ? 'Signing in...' : 'Use Firebase Sign-In'}
+            </Text>
           </Pressable>
         </View>
       </View>
