@@ -1,14 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { useAppSession } from '../../app/session/useAppSession';
 import { AppUser } from '../../domain/auth';
-import { fetchDashboardSnapshot } from '../../data/firebase/firestoreService';
-import { hasFirebaseConfig } from '../../data/firebase/config';
-import { dashboardSnapshot } from '../../data/mock/dashboard';
 import { createDashboardSummary } from '../../domain/analytics';
-import { AuditEvent, ChecklistItem, DashboardSnapshot, Handoff, TeamModule } from '../../domain/models';
+import { ChecklistItem, Handoff, TeamModule } from '../../domain/models';
 import { MetricCard } from '../components/MetricCard';
 import { SectionCard } from '../components/SectionCard';
+import { useDashboardSnapshot } from '../hooks/useDashboardSnapshot';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
 const stateLabel: Record<TeamModule['state'], string> = {
@@ -33,7 +32,6 @@ const checklistTone: Record<ChecklistItem['priority'], string> = {
 
 type HomeScreenProps = {
   currentUser: AppUser;
-  onSignOut: () => void;
 };
 
 type HomeTab = 'overview' | 'handoffs' | 'audit';
@@ -50,96 +48,10 @@ const roleLabel: Record<AppUser['role'], string> = {
   org_head: 'Organization Head',
 };
 
-const filterModulesForUser = (modules: TeamModule[], currentUser: AppUser) => {
-  if (currentUser.role === 'org_head') {
-    return modules;
-  }
-
-  return modules.filter((module) => currentUser.moduleIds.includes(module.id));
-};
-
-const filterTasksForUser = (tasks: ChecklistItem[], currentUser: AppUser) => {
-  if (currentUser.role === 'org_head') {
-    return tasks;
-  }
-
-  return tasks.filter((task) => currentUser.moduleIds.includes(task.moduleId));
-};
-
-const filterHandoffsForUser = (handoffs: Handoff[], visibleModules: TeamModule[], currentUser: AppUser) => {
-  if (currentUser.role === 'org_head') {
-    return handoffs;
-  }
-
-  const visibleModuleNames = new Set(visibleModules.map((module) => module.name));
-  return handoffs.filter(
-    (handoff) => visibleModuleNames.has(handoff.fromModule) || visibleModuleNames.has(handoff.toModule),
-  );
-};
-
-const buildSnapshotForUser = (baseSnapshot: DashboardSnapshot, currentUser: AppUser) => {
-  const visibleModules = filterModulesForUser(baseSnapshot.modules, currentUser);
-
-  return {
-    modules: visibleModules,
-    checklist: filterTasksForUser(baseSnapshot.checklist, currentUser),
-    handoffs: filterHandoffsForUser(baseSnapshot.handoffs, visibleModules, currentUser),
-    auditTrail: currentUser.role === 'org_head' ? baseSnapshot.auditTrail : [],
-  };
-};
-
-export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
-  const [snapshot, setSnapshot] = useState<DashboardSnapshot>(() => buildSnapshotForUser(dashboardSnapshot, currentUser));
-  const [dataSource, setDataSource] = useState<'mock' | 'live'>('mock');
-  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+export const HomeScreen = ({ currentUser }: HomeScreenProps) => {
+  const { signOutCurrentUser } = useAppSession();
   const [activeTab, setActiveTab] = useState<HomeTab>('overview');
-
-  useEffect(() => {
-    let active = true;
-
-    const loadDashboard = async () => {
-      if (!hasFirebaseConfig()) {
-        setSnapshot(buildSnapshotForUser(dashboardSnapshot, currentUser));
-        setDataSource('mock');
-        setStatus('idle');
-        return;
-      }
-
-      try {
-        setStatus('loading');
-        const liveSnapshot = await fetchDashboardSnapshot();
-
-        if (!active) {
-          return;
-        }
-
-        const nextSnapshot: DashboardSnapshot = buildSnapshotForUser(liveSnapshot, currentUser);
-
-        setSnapshot(nextSnapshot);
-        setDataSource('live');
-        setStatus('idle');
-      } catch {
-        if (!active) {
-          return;
-        }
-
-        setSnapshot({
-          modules: [],
-          checklist: [],
-          handoffs: [],
-          auditTrail: [],
-        });
-        setDataSource('live');
-        setStatus('error');
-      }
-    };
-
-    loadDashboard();
-
-    return () => {
-      active = false;
-    };
-  }, [currentUser]);
+  const { snapshot, dataSource, status } = useDashboardSnapshot(currentUser);
 
   const summary = createDashboardSummary(snapshot);
   const isUsingMockData = dataSource === 'mock';
@@ -290,7 +202,7 @@ export const HomeScreen = ({ currentUser, onSignOut }: HomeScreenProps) => {
               <Text style={styles.sessionRole}>{roleLabel[currentUser.role]}</Text>
               <Text style={styles.sessionEmail}>{currentUser.email}</Text>
             </View>
-            <Text onPress={onSignOut} style={styles.signOut}>
+            <Text onPress={signOutCurrentUser} style={styles.signOut}>
               Sign out
             </Text>
           </View>

@@ -1,15 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { useAppSession } from '../../app/session/useAppSession';
 import { signInWithFirebase } from '../../data/firebase/authService';
 import { saveUserProfile } from '../../data/firebase/firestoreService';
-import { AppUser, UserRole } from '../../domain/auth';
+import { UserRole } from '../../domain/auth';
 import { colors, radius, spacing, typography } from '../theme/tokens';
-
-type SignInScreenProps = {
-  onAuthenticated: (user: AppUser) => void;
-  onDemoSignIn: (email: string, role: UserRole) => void;
-};
 
 const roles: { value: UserRole; label: string }[] = [
   { value: 'member', label: 'Team Member' },
@@ -17,7 +13,8 @@ const roles: { value: UserRole; label: string }[] = [
   { value: 'org_head', label: 'Organization Head' },
 ];
 
-export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProps) => {
+export const SignInScreen = () => {
+  const { completeAuthenticatedSignIn, signInDemoUser } = useAppSession();
   const [email, setEmail] = useState('head@glassboard.app');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('module_head');
@@ -35,7 +32,7 @@ export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProp
       setError(null);
       const user = await signInWithFirebase({ email, password, preferredRole: role });
       await saveUserProfile(user);
-      onAuthenticated(user);
+      completeAuthenticatedSignIn(user);
     } catch (signInError) {
       const message = signInError instanceof Error ? signInError.message : 'Sign-in failed.';
       setError(message);
@@ -46,7 +43,7 @@ export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProp
 
   const handleDemoSignIn = () => {
     setError(null);
-    onDemoSignIn(email, role);
+    signInDemoUser(email, role);
   };
 
   return (
