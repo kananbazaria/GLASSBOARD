@@ -29,6 +29,10 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     gap: spacing.md,
+    shadowColor: '#02101f',
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
   },
   header: {
     gap: spacing.xs,

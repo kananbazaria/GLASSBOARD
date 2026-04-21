@@ -32,7 +32,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceStrong,
     gap: spacing.xs,
   },
   label: {
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.textPrimary,
-    fontSize: 26,
+    fontSize: 28,
     fontWeight: '700',
     fontFamily: typography.body,
   },

@@ -1,15 +1,19 @@
 export const colors = {
-  background: '#041010',
-  surface: '#091717',
-  surfaceStrong: '#0d1e1d',
-  border: '#173433',
-  textPrimary: '#f4f7f5',
-  textMuted: '#91a4a0',
-  textDim: '#6f8480',
-  accent: '#9ff7d7',
-  warning: '#f5c96b',
-  danger: '#ff7c72',
-  success: '#7df1a7',
+  background: '#07111f',
+  backgroundAccent: '#102645',
+  surface: '#0f1d31',
+  surfaceStrong: '#172840',
+  surfaceElevated: '#1f3656',
+  border: '#29466b',
+  textPrimary: '#f6f7fb',
+  textMuted: '#aebbcf',
+  textDim: '#7b8da9',
+  accent: '#7ce2ff',
+  accentStrong: '#49c4ff',
+  warning: '#ffca70',
+  danger: '#ff8f7a',
+  success: '#81f0c5',
+  info: '#9bb1ff',
 };
 
 export const spacing = {
@@ -27,6 +31,6 @@ export const radius = {
 };
 
 export const typography = {
-  display: 'Courier',
+  display: 'Georgia',
   body: 'System',
 };
