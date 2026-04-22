@@ -1,20 +1,37 @@
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+<<<<<<< Updated upstream
 import { useAppSession } from '../../app/session/useAppSession';
 import { signInWithFirebase } from '../../data/firebase/authService';
 import { saveUserProfile } from '../../data/firebase/firestoreService';
 import { UserRole } from '../../domain/auth';
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
+=======
+import { signInWithFirebase } from '../../data/firebase/authService';
+import { saveUserProfile } from '../../data/firebase/firestoreService';
+import { AppUser, UserRole } from '../../domain/auth';
+import { colors, radius, spacing, typography } from '../theme/tokens';
+
+type SignInScreenProps = {
+  onAuthenticated: (user: AppUser) => void;
+  onDemoSignIn: (email: string, role: UserRole) => void;
+};
+
+>>>>>>> Stashed changes
 const roles: { value: UserRole; label: string }[] = [
   { value: 'member', label: 'Team Member' },
   { value: 'module_head', label: 'Module Head' },
   { value: 'org_head', label: 'Organization Head' },
 ];
 
+<<<<<<< Updated upstream
 export const SignInScreen = () => {
   const { completeAuthenticatedSignIn, signInDemoUser } = useAppSession();
+=======
+export const SignInScreen = ({ onAuthenticated, onDemoSignIn }: SignInScreenProps) => {
+>>>>>>> Stashed changes
   const [email, setEmail] = useState('head@glassboard.app');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<UserRole>('module_head');
@@ -30,9 +47,15 @@ export const SignInScreen = () => {
     try {
       setStatus('submitting');
       setError(null);
+<<<<<<< Updated upstream
       const user = await signInWithFirebase({ email, password, preferredRole: role });
       await saveUserProfile(user);
       completeAuthenticatedSignIn(user);
+=======
+      const user = await signInWithFirebase({ email, password });
+      await saveUserProfile(user);
+      onAuthenticated(user);
+>>>>>>> Stashed changes
     } catch (signInError) {
       const message = signInError instanceof Error ? signInError.message : 'Sign-in failed.';
       setError(message);
@@ -43,7 +66,11 @@ export const SignInScreen = () => {
 
   const handleDemoSignIn = () => {
     setError(null);
+<<<<<<< Updated upstream
     signInDemoUser(email, role);
+=======
+    onDemoSignIn(email, role);
+>>>>>>> Stashed changes
   };
 
   return (
@@ -109,9 +136,13 @@ export const SignInScreen = () => {
             onPress={handleFirebaseSignIn}
             style={[styles.button, styles.primaryButton, status === 'submitting' ? styles.buttonDisabled : undefined]}
           >
+<<<<<<< Updated upstream
             <Text style={styles.primaryButtonText}>
               {status === 'submitting' ? 'Signing in...' : 'Use Firebase Sign-In'}
             </Text>
+=======
+            <Text style={styles.primaryButtonText}>{status === 'submitting' ? 'Signing in...' : 'Use Firebase Sign-In'}</Text>
+>>>>>>> Stashed changes
           </Pressable>
         </View>
       </View>

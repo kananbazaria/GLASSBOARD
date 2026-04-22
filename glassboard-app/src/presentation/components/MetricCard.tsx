@@ -32,7 +32,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
+<<<<<<< Updated upstream
     backgroundColor: colors.surfaceStrong,
+=======
+    backgroundColor: colors.surface,
+>>>>>>> Stashed changes
     gap: spacing.xs,
   },
   label: {
@@ -44,7 +48,11 @@ const styles = StyleSheet.create({
   },
   value: {
     color: colors.textPrimary,
+<<<<<<< Updated upstream
     fontSize: 28,
+=======
+    fontSize: 26,
+>>>>>>> Stashed changes
     fontWeight: '700',
     fontFamily: typography.body,
   },

@@ -11,5 +11,8 @@ export type AppUser = {
 export type SignInPayload = {
   email: string;
   password: string;
+<<<<<<< Updated upstream
   preferredRole?: UserRole;
+=======
+>>>>>>> Stashed changes
 };

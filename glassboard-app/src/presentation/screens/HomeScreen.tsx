@@ -1,3 +1,4 @@
+<<<<<<< Updated upstream
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
@@ -8,6 +9,27 @@ import { ChecklistItem, Handoff, TeamModule } from '../../domain/models';
 import { MetricCard } from '../components/MetricCard';
 import { SectionCard } from '../components/SectionCard';
 import { useDashboardSnapshot } from '../hooks/useDashboardSnapshot';
+=======
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ScrollView, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
+import { collection, onSnapshot, orderBy, query } from 'firebase/firestore';
+
+import { AppUser } from '../../domain/auth';
+import { getFirebaseDb, hasFirebaseConfig } from '../../data/firebase/config';
+import { dashboardSnapshot } from '../../data/mock/dashboard';
+import { createDashboardSummary } from '../../domain/analytics';
+import { AuditEvent, ChecklistItem, DashboardSnapshot, Handoff, TeamModule } from '../../domain/models';
+import {
+  AuditEventDocument,
+  HandoffDocument,
+  ModuleDocument,
+  TaskDocument,
+  collections,
+} from '../../domain/database';
+import { HandoffCard } from '../components/HandoffCard';
+import { MetricCard } from '../components/MetricCard';
+import { SectionCard } from '../components/SectionCard';
+>>>>>>> Stashed changes
 import { colors, radius, spacing, typography } from '../theme/tokens';
 
 const stateLabel: Record<TeamModule['state'], string> = {
@@ -17,6 +39,7 @@ const stateLabel: Record<TeamModule['state'], string> = {
   'pending-review': 'Pending review',
 };
 
+<<<<<<< Updated upstream
 const handoffLabel: Record<Handoff['status'], string> = {
   ready: 'Ready to send',
   'awaiting-response': 'Awaiting response',
@@ -24,6 +47,8 @@ const handoffLabel: Record<Handoff['status'], string> = {
   rejected: 'Rejected',
 };
 
+=======
+>>>>>>> Stashed changes
 const checklistTone: Record<ChecklistItem['priority'], string> = {
   low: colors.textMuted,
   medium: colors.warning,
@@ -32,6 +57,7 @@ const checklistTone: Record<ChecklistItem['priority'], string> = {
 
 type HomeScreenProps = {
   currentUser: AppUser;
+<<<<<<< Updated upstream
 };
 
 type HomeTab = 'overview' | 'handoffs' | 'audit';
@@ -42,12 +68,19 @@ const homeTabs: { key: HomeTab; label: string }[] = [
   { key: 'audit', label: 'Audit' },
 ];
 
+=======
+  onSignOut: () => void;
+  onNavigateFiles: () => void; // Added new prop here
+};
+
+>>>>>>> Stashed changes
 const roleLabel: Record<AppUser['role'], string> = {
   member: 'Team Member',
   module_head: 'Module Head',
   org_head: 'Organization Head',
 };
 
+<<<<<<< Updated upstream
 export const HomeScreen = ({ currentUser }: HomeScreenProps) => {
   const { signOutCurrentUser } = useAppSession();
   const [activeTab, setActiveTab] = useState<HomeTab>('overview');
@@ -189,20 +222,156 @@ export const HomeScreen = ({ currentUser }: HomeScreenProps) => {
       ))}
     </SectionCard>
   );
+=======
+const filterModulesForUser = (modules: TeamModule[], currentUser: AppUser) => {
+  if (currentUser.role === 'org_head') return modules;
+  return modules.filter((m) => currentUser.moduleIds.includes(m.id));
+};
+
+const filterTasksForUser = (tasks: ChecklistItem[], currentUser: AppUser) => {
+  if (currentUser.role === 'org_head') return tasks;
+  return tasks.filter((t) => currentUser.moduleIds.includes(t.moduleId));
+};
+
+const filterHandoffsForUser = (handoffs: Handoff[], visibleModules: TeamModule[], currentUser: AppUser) => {
+  if (currentUser.role === 'org_head') return handoffs;
+  const visibleNames = new Set(visibleModules.map((m) => m.name));
+  return handoffs.filter((h) => visibleNames.has(h.fromModule) || visibleNames.has(h.toModule));
+};
+
+const buildSnapshotForUser = (base: DashboardSnapshot, currentUser: AppUser): DashboardSnapshot => {
+  const visibleModules = filterModulesForUser(base.modules, currentUser);
+  return {
+    modules: visibleModules,
+    checklist: filterTasksForUser(base.checklist, currentUser),
+    handoffs: filterHandoffsForUser(base.handoffs, visibleModules, currentUser),
+    auditTrail: currentUser.role === 'org_head' ? base.auditTrail : [],
+  };
+};
+
+export const HomeScreen = ({ currentUser, onSignOut, onNavigateFiles }: HomeScreenProps) => {
+  const [snapshot, setSnapshot] = useState<DashboardSnapshot>(() =>
+    buildSnapshotForUser(dashboardSnapshot, currentUser),
+  );
+  const [dataSource, setDataSource] = useState<'mock' | 'live'>('mock');
+  const [status, setStatus] = useState<'idle' | 'loading' | 'error'>('idle');
+
+  const liveData = useRef<{
+    modules: TeamModule[];
+    checklist: ChecklistItem[];
+    handoffs: Handoff[];
+    auditTrail: AuditEvent[];
+  }>({
+    modules: dashboardSnapshot.modules,
+    checklist: dashboardSnapshot.checklist,
+    handoffs: dashboardSnapshot.handoffs,
+    auditTrail: dashboardSnapshot.auditTrail,
+  });
+
+  const rebuildSnapshot = () => {
+    setSnapshot(buildSnapshotForUser(liveData.current, currentUser));
+  };
+
+  useEffect(() => {
+    if (!hasFirebaseConfig()) return;
+
+    setStatus('loading');
+    const db = getFirebaseDb();
+    let resolvedCount = 0;
+    const totalListeners = 4;
+
+    const onReady = () => {
+      resolvedCount += 1;
+      if (resolvedCount === totalListeners) {
+        setStatus('idle');
+        setDataSource('live');
+      }
+    };
+
+    const unsubModules = onSnapshot(
+      query(collection(db, collections.modules), orderBy('name')),
+      (snap) => {
+        const docs = snap.docs.map((d) => d.data() as ModuleDocument) as unknown as TeamModule[];
+        liveData.current.modules = docs.length > 0 ? docs : dashboardSnapshot.modules;
+        rebuildSnapshot();
+        onReady();
+      },
+      () => { setStatus('error'); onReady(); },
+    );
+
+    const unsubTasks = onSnapshot(
+      query(collection(db, collections.tasks), orderBy('priority')),
+      (snap) => {
+        const docs = snap.docs.map((d) => d.data() as TaskDocument) as unknown as ChecklistItem[];
+        liveData.current.checklist = docs.length > 0 ? docs : dashboardSnapshot.checklist;
+        rebuildSnapshot();
+        onReady();
+      },
+      () => { setStatus('error'); onReady(); },
+    );
+
+    const unsubHandoffs = onSnapshot(
+      query(collection(db, collections.handoffs), orderBy('requestedAt', 'desc')),
+      (snap) => {
+        const docs = snap.docs.map((d) => d.data() as HandoffDocument) as unknown as Handoff[];
+        liveData.current.handoffs = docs.length > 0 ? docs : dashboardSnapshot.handoffs;
+        rebuildSnapshot();
+        onReady();
+      },
+      () => { setStatus('error'); onReady(); },
+    );
+
+    const unsubAudit = currentUser.role === 'org_head'
+      ? onSnapshot(
+          query(collection(db, collections.auditEvents), orderBy('timestamp', 'desc')),
+          (snap) => {
+            liveData.current.auditTrail = snap.docs.map((d) => d.data() as AuditEvent);
+            rebuildSnapshot();
+            onReady();
+          },
+          () => { setStatus('error'); onReady(); },
+        )
+      : (() => { onReady(); return () => {}; })();
+
+    return () => {
+      unsubModules();
+      unsubTasks();
+      unsubHandoffs();
+      unsubAudit();
+    };
+  }, [currentUser]);
+
+  const receiverModuleNames = useMemo(
+    () => new Set(snapshot.modules.map((m) => m.name)),
+    [snapshot.modules],
+  );
+
+  const handleHandoffStatusChange = (_handoffId: string, _status: 'accepted' | 'rejected') => {};
+
+  const summary = createDashboardSummary(snapshot);
+>>>>>>> Stashed changes
 
   return (
     <View style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+<<<<<<< Updated upstream
         <View style={styles.heroShell}>
           <View style={styles.heroGlow} />
           <View style={styles.hero}>
+=======
+        <View style={styles.hero}>
+>>>>>>> Stashed changes
           <Text style={styles.brand}>GLASSBOARD</Text>
           <View style={styles.sessionBar}>
             <View style={styles.sessionMeta}>
               <Text style={styles.sessionRole}>{roleLabel[currentUser.role]}</Text>
               <Text style={styles.sessionEmail}>{currentUser.email}</Text>
             </View>
+<<<<<<< Updated upstream
             <Text onPress={signOutCurrentUser} style={styles.signOut}>
+=======
+            <Text onPress={onSignOut} style={styles.signOut}>
+>>>>>>> Stashed changes
               Sign out
             </Text>
           </View>
@@ -212,6 +381,7 @@ export const HomeScreen = ({ currentUser }: HomeScreenProps) => {
           </Text>
           <View style={styles.heroBadge}>
             <Text style={styles.heroBadgeText}>
+<<<<<<< Updated upstream
               {isUsingMockData
                 ? 'Demo mode with local sample data for module health, handoffs, and audit history'
                 : hasLiveData
@@ -245,6 +415,112 @@ export const HomeScreen = ({ currentUser }: HomeScreenProps) => {
         {activeTab === 'overview' ? renderOverviewTab() : null}
         {activeTab === 'handoffs' ? renderHandoffsTab() : null}
         {activeTab === 'audit' ? renderAuditTab() : null}
+=======
+              {dataSource === 'live'
+                ? '⬤  Live — syncing in real time from Firestore'
+                : 'Mobile command view for module health, handoffs, and audit history'}
+            </Text>
+          </View>
+          {status === 'loading' ? <Text style={styles.statusText}>Connecting to Firestore...</Text> : null}
+          {status === 'error' ? <Text style={styles.statusError}>Firestore sync failed, showing local mock data.</Text> : null}
+        </View>
+
+        {/* New Shared Files Navigation Button */}
+        <TouchableOpacity style={styles.filesButton} onPress={onNavigateFiles} activeOpacity={0.7}>
+          <Text style={styles.filesButtonText}>Browse Shared Files</Text>
+          <Text style={styles.filesButtonArrow}>→</Text>
+        </TouchableOpacity>
+
+        <View style={styles.metricGrid}>
+          <MetricCard label="Modules" value={String(summary.moduleCount)} />
+          <MetricCard label="Blocked" value={String(summary.blockedModules)} tone="danger" />
+          <MetricCard label="Pending handoffs" value={String(summary.pendingHandoffs)} tone="warning" />
+          <MetricCard label="Checklist completion" value={`${summary.completionRate}%`} tone="success" />
+        </View>
+
+        <SectionCard
+          title="Module Progress"
+          subtitle="Each module owns its checklist, updates progress, and exposes only the context needed for the next handoff."
+        >
+          {snapshot.modules.map((module) => (
+            <View key={module.id} style={styles.rowCard}>
+              <View style={styles.rowHeader}>
+                <View style={styles.rowTitleBlock}>
+                  <Text style={styles.rowTitle}>{module.name}</Text>
+                  <Text style={styles.rowSubtitle}>
+                    Owner: {module.owner}
+                    {module.nextDependency ? `  •  Next: ${module.nextDependency}` : ''}
+                  </Text>
+                </View>
+                <Text style={styles.progressValue}>{module.progress}%</Text>
+              </View>
+              <View style={styles.progressTrack}>
+                <View style={[styles.progressFill, { width: `${module.progress}%` }]} />
+              </View>
+              <View style={styles.metadataRow}>
+                <Text style={styles.metadataText}>{stateLabel[module.state]}</Text>
+                <Text style={styles.metadataText}>
+                  {module.openTasks} open tasks • {module.blockers} blockers
+                </Text>
+              </View>
+            </View>
+          ))}
+        </SectionCard>
+
+        <SectionCard
+          title="Digital Handshakes"
+          subtitle="Every transition is explicit: sender, receiver, proof of delivery, deadline, and response state."
+        >
+          {snapshot.handoffs.map((handoff) => (
+            <HandoffCard
+              key={handoff.id}
+              handoff={handoff}
+              currentUser={currentUser}
+              receiverModuleNames={receiverModuleNames}
+              onStatusChange={handleHandoffStatusChange}
+            />
+          ))}
+        </SectionCard>
+
+        <SectionCard
+          title="Checklist Focus"
+          subtitle="A lightweight checklist system keeps each team honest before they can initiate the next module handoff."
+        >
+          {snapshot.checklist.map((item) => (
+            <View key={item.id} style={styles.checklistRow}>
+              <View style={[styles.checkIcon, item.complete ? styles.checkIconDone : styles.checkIconPending]}>
+                <Text style={styles.checkIconText}>{item.complete ? 'OK' : '!'}</Text>
+              </View>
+              <View style={styles.rowTitleBlock}>
+                <Text style={styles.rowTitle}>{item.title}</Text>
+                <Text style={[styles.rowSubtitle, { color: checklistTone[item.priority] }]}>
+                  Priority: {item.priority.toUpperCase()} • Module: {item.moduleId}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </SectionCard>
+
+        <SectionCard
+          title="Leadership Audit View"
+          subtitle="Organization heads get the full trail without exposing unrelated sensitive detail across teams."
+        >
+          {snapshot.auditTrail.length === 0 ? (
+            <Text style={styles.metadataText}>
+              Audit events will appear here for organization heads once the collection is added.
+            </Text>
+          ) : null}
+          {snapshot.auditTrail.map((event) => (
+            <View key={event.id} style={styles.auditRow}>
+              <Text style={styles.auditActor}>{event.actor}</Text>
+              <Text style={styles.auditText}>
+                {event.action} on {event.target}
+              </Text>
+              <Text style={styles.auditTime}>{event.timestamp}</Text>
+            </View>
+          ))}
+        </SectionCard>
+>>>>>>> Stashed changes
       </ScrollView>
     </View>
   );
@@ -261,6 +537,7 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xl * 2,
     gap: spacing.md,
   },
+<<<<<<< Updated upstream
   heroShell: {
     position: 'relative',
     overflow: 'hidden',
@@ -282,6 +559,36 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.lg,
   },
+=======
+  hero: {
+    gap: spacing.md,
+    paddingBottom: spacing.sm,
+  },
+  // --- New Styles for Shared Files Button ---
+  filesButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceStrong,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    marginBottom: spacing.xs,
+  },
+  filesButtonText: {
+    color: colors.textPrimary,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  filesButtonArrow: {
+    color: colors.accent,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  // ------------------------------------------
+>>>>>>> Stashed changes
   sessionBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -311,6 +618,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.pill,
     overflow: 'hidden',
+<<<<<<< Updated upstream
     backgroundColor: colors.surfaceStrong,
   },
   brand: {
@@ -318,6 +626,14 @@ const styles = StyleSheet.create({
     fontSize: 42,
     lineHeight: 48,
     letterSpacing: 1.1,
+=======
+  },
+  brand: {
+    color: colors.textPrimary,
+    fontSize: 40,
+    lineHeight: 46,
+    letterSpacing: 1.5,
+>>>>>>> Stashed changes
     fontFamily: typography.display,
   },
   heroCopy: {
@@ -332,13 +648,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.border,
+<<<<<<< Updated upstream
     backgroundColor: colors.surfaceElevated,
+=======
+    backgroundColor: colors.surfaceStrong,
+>>>>>>> Stashed changes
   },
   heroBadgeText: {
     color: colors.accent,
     fontSize: 12,
     letterSpacing: 0.4,
   },
+<<<<<<< Updated upstream
   tabBar: {
     flexDirection: 'row',
     gap: spacing.sm,
@@ -365,6 +686,8 @@ const styles = StyleSheet.create({
   tabChipTextActive: {
     color: colors.textPrimary,
   },
+=======
+>>>>>>> Stashed changes
   statusText: {
     color: colors.textMuted,
     fontSize: 13,
@@ -383,8 +706,11 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.surfaceStrong,
     gap: spacing.sm,
+<<<<<<< Updated upstream
     borderWidth: 1,
     borderColor: colors.border,
+=======
+>>>>>>> Stashed changes
   },
   rowHeader: {
     flexDirection: 'row',
@@ -419,7 +745,11 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: radius.pill,
+<<<<<<< Updated upstream
     backgroundColor: colors.accentStrong,
+=======
+    backgroundColor: colors.accent,
+>>>>>>> Stashed changes
   },
   metadataRow: {
     flexDirection: 'row',
@@ -431,6 +761,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flexShrink: 1,
   },
+<<<<<<< Updated upstream
   handoffStatus: {
     color: colors.warning,
     fontSize: 12,
@@ -438,6 +769,8 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     paddingTop: 4,
   },
+=======
+>>>>>>> Stashed changes
   checklistRow: {
     flexDirection: 'row',
     gap: spacing.md,
@@ -484,4 +817,8 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: 12,
   },
+<<<<<<< Updated upstream
 });
+=======
+});
+>>>>>>> Stashed changes

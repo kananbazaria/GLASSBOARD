@@ -1,7 +1,24 @@
+<<<<<<< Updated upstream
 import { collection, doc, getDoc, getDocs, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { AppUser } from '../../domain/auth';
 import { DashboardSnapshot } from '../../domain/models';
+=======
+import {
+  addDoc,
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc,
+} from 'firebase/firestore';
+
+import { AppUser } from '../../domain/auth';
+>>>>>>> Stashed changes
 import {
   AuditEventDocument,
   HandoffDocument,
@@ -74,6 +91,7 @@ export const fetchUserProfile = async (userId: string): Promise<UserDocument | n
   return snapshot.exists() ? (snapshot.data() as UserDocument) : null;
 };
 
+<<<<<<< Updated upstream
 export const fetchDashboardSnapshot = async (): Promise<DashboardSnapshot> => {
   if (!hasFirebaseConfig()) {
     return {
@@ -98,3 +116,34 @@ export const fetchDashboardSnapshot = async (): Promise<DashboardSnapshot> => {
     auditTrail: auditEvents,
   };
 };
+=======
+export const saveProofUrl = async (
+  handoffId: string,
+  proofUrl: string,
+): Promise<void> => {
+  if (!hasFirebaseConfig()) return;
+  const ref = doc(getFirebaseDb(), collections.handoffs, handoffId);
+  await updateDoc(ref, { proofUrl });
+};
+
+export const updateHandoffStatus = async (
+  handoffId: string,
+  status: 'accepted' | 'rejected',
+): Promise<void> => {
+  if (!hasFirebaseConfig()) return;
+  const ref = doc(getFirebaseDb(), collections.handoffs, handoffId);
+  await updateDoc(ref, { status });
+};
+
+export const writeAuditEvent = async (event: {
+  actor: string;
+  action: string;
+  target: string;
+}): Promise<void> => {
+  if (!hasFirebaseConfig()) return;
+  await addDoc(collection(getFirebaseDb(), collections.auditEvents), {
+    ...event,
+    timestamp: serverTimestamp(),
+  });
+};
+>>>>>>> Stashed changes

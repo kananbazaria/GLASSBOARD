@@ -29,10 +29,13 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
     gap: spacing.md,
+<<<<<<< Updated upstream
     shadowColor: '#02101f',
     shadowOpacity: 0.18,
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 12 },
+=======
+>>>>>>> Stashed changes
   },
   header: {
     gap: spacing.xs,

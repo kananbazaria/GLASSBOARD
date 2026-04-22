@@ -31,8 +31,12 @@ yarn-error.*
 *.pem
 
 # local env files
+<<<<<<< Updated upstream
 .env
 .env.*
+=======
+.env*.local
+>>>>>>> Stashed changes
 
 # typescript
 *.tsbuildinfo

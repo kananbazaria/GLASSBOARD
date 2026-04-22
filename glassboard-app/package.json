@@ -9,7 +9,15 @@
     "web": "expo start --web"
   },
   "dependencies": {
+<<<<<<< Updated upstream
     "expo": "~54.0.33",
+=======
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~54.0.33",
+    "expo-document-picker": "~14.0.8",
+    "expo-file-system": "~19.0.21",
+    "expo-image-picker": "~17.0.10",
+>>>>>>> Stashed changes
     "expo-status-bar": "~3.0.9",
     "firebase": "^12.12.1",
     "react": "19.1.0",
